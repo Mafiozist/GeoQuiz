@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
             mCurrentIndex = savedInstanceState.getInt(KEY_INDEX, 0)
         }
 
-        //В коде java тут приводят к типу button, но по видемому
+        //В коде java тут приводят к типу button, но по видимому
         // в kotlin это не требуется(может новая версия)
         mTrueButton = findViewById(R.id.true_button)
         mTrueButton.setOnClickListener { checkAnswer(true) }
@@ -85,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         mPrevButton.setOnClickListener {
             mCurrentIndex =
                 if (mCurrentIndex == 0) mQuestionBank.size - 1 else (mCurrentIndex - 1)
+            
             updateQuestion()
             isHasAnswerDo()
             showMessage()
