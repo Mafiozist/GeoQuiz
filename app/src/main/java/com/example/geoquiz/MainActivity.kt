@@ -1,35 +1,35 @@
 package com.example.geoquiz
 
+import android.annotation.SuppressLint
+import android.content.res.Resources
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.ImageButton
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
-    //last page 97
-    private lateinit var mTrueButton : Button;
-    private lateinit var mFalseButton : Button;
+    //last page 107
+    private lateinit var mTrueButton : Button
+    private lateinit var mFalseButton : Button
 
     //Старая вариация кнопок с текстом
-    //private lateinit var mNextButton : Button;
-    //private lateinit var mPrevButton : Button;
-    private lateinit var mQuestionTextView : TextView;
+    //private lateinit var mNextButton : Button
+    //private lateinit var mPrevButton : Button
+    private lateinit var mQuestionTextView : TextView
 
     //Новые кнопки, чисто с использованием изображения
     //Насл от imageview
-    private lateinit var mPrevButton : ImageButton;
-    private lateinit var mNextButton : ImageButton;
+    private lateinit var mPrevButton : ImageButton
+    private lateinit var mNextButton : ImageButton
 
-    private lateinit var mAnswerTextView: TextView;
+    private lateinit var mAnswerTextView: TextView
+    private  lateinit var mImageView: ImageView
 
     val TAG : String = "MainActivity"
     val KEY_INDEX : String = "index"
-
+    val ANSWERS_INDEX : String = "answers"
 
     private var  mQuestionBank : MutableList<Question> = mutableListOf<Question>(
         Question(R.string.question_australia, true),
@@ -45,19 +45,12 @@ class MainActivity : AppCompatActivity() {
 
     private var mCurrentIndex : Int = 0;
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate called")
         setContentView(R.layout.activity_main)
 
-        //Проверка на то, что данные сохранены и их можно забрать
-        if(savedInstanceState!=null) {
-            Log.d(TAG,"Получил данные")
-            mCurrentIndex = savedInstanceState.getInt(KEY_INDEX, 0)
-        }
-
-        //В коде java тут приводят к типу button, но по видимому
+        //В коде java тут приводят к типу button, но по видемому
         // в kotlin это не требуется(может новая версия)
         mTrueButton = findViewById(R.id.true_button)
         mTrueButton.setOnClickListener { checkAnswer(true) }
@@ -68,12 +61,13 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        mQuestionTextView = findViewById(R.id.question_text_view);
+        mQuestionTextView = findViewById(R.id.question_text_view)
 
         //Получил ссылку на кнопку
         mNextButton = findViewById(R.id.next_button)
         mNextButton.setOnClickListener {
             mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.size
+
             updateQuestion()
             isHasAnswerDo()
             showMessage()
@@ -85,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         mPrevButton.setOnClickListener {
             mCurrentIndex =
                 if (mCurrentIndex == 0) mQuestionBank.size - 1 else (mCurrentIndex - 1)
-            
+
             updateQuestion()
             isHasAnswerDo()
             showMessage()
@@ -95,14 +89,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateQuestion() {
-        var question : Int = mQuestionBank[mCurrentIndex].textResId
+        //Log.d(TAG,"Updating question text", Exception())
+
+        val question : Int = mQuestionBank[mCurrentIndex].textResId
         mQuestionTextView.setText(question)
     }
 
     private fun calculateSumTrueAnswer() : Int{
-        var sum : Int = 0;
+        var sum : Int = 0
         for((index,answer) in mQuestionAnswers) {
-            if (mQuestionBank[index].isAnswerTrue == answer) sum++;
+            if (mQuestionBank[index].isAnswerTrue == answer) sum++
         }
         return sum
     }
@@ -114,12 +110,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private fun isHasAnswerDo() : Boolean{
         if(mQuestionAnswers.containsKey(mCurrentIndex))
         {
             mTrueButton.visibility = View.INVISIBLE
             mFalseButton.visibility = View.INVISIBLE
-            mAnswerTextView.setText("Your answer is " + mQuestionAnswers[mCurrentIndex])
+            //Необходимо добавить этот текст в strings и чтобы при этом он
+            // динамически изменялся
+            val res : Resources = resources
+            val str : String = String.format(
+                res.getString(
+                    R.string.answer_output,
+                    mQuestionAnswers[mCurrentIndex].toString() ))
+
+            mAnswerTextView.text = str
             return true
         }
         else{
@@ -131,12 +136,11 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-
     //Получаем значение true или false  из массива Question
     //и по результату выдаем уведомление
     private fun checkAnswer(userPressedTrue: Boolean){
-        var answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue
-        var messageResId = 0
+        val answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue
+        val messageResId: Int
 
         if(userPressedTrue == answerIsTrue) {
             messageResId = R.string.correct_toast
@@ -160,6 +164,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "onResume() called")
+
+        //При продолжении работы необходимо проверить есть ли данные о
+        //вводе пользователя
+        //это необходимо потому что происходит проверка состояния введенных данных -
+        // только по нажатию на кнопку
+        //а при смене жизни активности, кнопка не может быть нажата т.к. программа только заработала
+        isHasAnswerDo()
     }
 
     override fun onPause() {
@@ -177,12 +188,43 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "onDestroy() called")
     }
 
+    //Фунция необходимая для сохранения данных при изменениях жизни activity
+    private fun getBoolArrayFromMap(answers : MutableMap<Int,Boolean>?) : BooleanArray{
+        //индексы важны т.к. они отвечают за id вопроса
+        val tempArray = BooleanArray(answers!!.size)
+        if(!answers.isNullOrEmpty())
+        for( (index, answer) in answers ){
+            tempArray[index] = answer
+        }
+        return tempArray
+    }
+
+    private fun getMapFromBoolArray(boolArray : BooleanArray?) : MutableMap<Int,Boolean>{
+        val tempMap = mutableMapOf<Int,Boolean>()
+        if(boolArray != null)
+        for ( i in boolArray.indices){
+            tempMap[i] = boolArray[i]
+        }
+        return tempMap
+    }
+
     //Метод используется не только при поворотах, но и других изменениях
     // конфигурации времени выполнения
     //Переопределяем метод, который сохраняет жизнь переменным после вызова stop
     override fun onSaveInstanceState(savedInstanceState: Bundle) {
         super.onSaveInstanceState(savedInstanceState)
-        Log.d(TAG,"Сохранил данные(onSaveInstanceState)")
+
+        savedInstanceState.putBooleanArray(ANSWERS_INDEX,getBoolArrayFromMap(mQuestionAnswers))
         savedInstanceState.putInt(KEY_INDEX, mCurrentIndex)
+        Log.d(TAG,"Сохранил данные(onSaveInstanceState)")+
+        Log.i(TAG,"Введенные данные сохраненные программой ${getBoolArrayFromMap(mQuestionAnswers).size.toString()}")
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
+        super.onRestoreInstanceState(savedInstanceState)
+        Log.d(TAG,"Получил данные onRestoreInstanceState")
+        mCurrentIndex = savedInstanceState!!.getInt(KEY_INDEX, 0)
+        mQuestionAnswers = getMapFromBoolArray(savedInstanceState.getBooleanArray(ANSWERS_INDEX))
+        Log.i(TAG,"Введенные данные сохраненные программой ${savedInstanceState.getBooleanArray(ANSWERS_INDEX)?.size.toString()}")
     }
 }

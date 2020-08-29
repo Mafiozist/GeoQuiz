@@ -19,7 +19,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/answer_text_view"
-        android:textAlignment="center"/>
+        android:textAlignment="center"
+        android:layout_gravity="center_horizontal"/>
     </LinearLayout>
 
     <LinearLayout
@@ -33,8 +34,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/true_button"
-            android:padding="4dp"
-            />
+            android:padding="4dp"/>
 
         <Button
             android:id="@+id/false_button"
@@ -52,7 +52,7 @@
             android:layout_height="wrap_content"
             android:padding="20dp"
             android:src="@drawable/arrow_left"
-            android:layout_gravity="bottom|left"/>
+            android:layout_gravity="bottom|start"/>
 
         <ImageButton
             android:id="@+id/next_button"
@@ -61,7 +61,7 @@
             android:padding="20dp"
             android:src="@drawable/arrow_right"
             android:text="@string/next_button"
-            android:layout_gravity="bottom|right"/>
+            android:layout_gravity="bottom|end"/>
 
 
 </FrameLayout>
