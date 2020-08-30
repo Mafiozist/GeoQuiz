@@ -1,6 +1,7 @@
 package com.example.geoquiz
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.res.Resources
 import android.os.Bundle
 import android.os.PersistableBundle
@@ -13,6 +14,7 @@ class MainActivity : AppCompatActivity() {
     //last page 107
     private lateinit var mTrueButton : Button
     private lateinit var mFalseButton : Button
+    private lateinit var mCheatButton : Button
 
     //Старая вариация кнопок с текстом
     //private lateinit var mNextButton : Button
@@ -86,6 +88,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         mAnswerTextView = findViewById(R.id.answer_text_view)
+
+        //Добавление новой кнопки и activity посредством intent, которому сообщаем
+        // о той activity которую нужно открыть
+        mCheatButton = findViewById(R.id.cheat_button)
+        mCheatButton.setOnClickListener{
+
+            //В данном случае используется явный explicit конструктор
+            val intent : Intent = Intent(this, CheatActivity::class.java)
+            startActivity(intent)
+
+        }
     }
 
     private fun updateQuestion() {
@@ -116,6 +129,7 @@ class MainActivity : AppCompatActivity() {
         {
             mTrueButton.visibility = View.INVISIBLE
             mFalseButton.visibility = View.INVISIBLE
+
             //Необходимо добавить этот текст в strings и чтобы при этом он
             // динамически изменялся
             val res : Resources = resources
