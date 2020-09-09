@@ -60,12 +60,15 @@ class MainActivity : AppCompatActivity() {
         //В коде java тут приводят к типу button, но по видемому
         // в kotlin это не требуется(может новая версия)
         mTrueButton = findViewById(R.id.true_button)
-        mTrueButton.setOnClickListener { checkAnswer(true) }
+        mTrueButton.setOnClickListener {
+            checkAnswer(true)
+            isHasAnswerDo()
+        }
 
         mFalseButton = findViewById(R.id.false_button)
         mFalseButton.setOnClickListener {
-
             checkAnswer(false)
+            isHasAnswerDo()
         }
 
 
