@@ -11,7 +11,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
-    //last page 107
+    //last page 135
     private lateinit var mTrueButton : Button
     private lateinit var mFalseButton : Button
     private lateinit var mCheatButton : Button
@@ -29,9 +29,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mAnswerTextView: TextView
     private  lateinit var mImageView: ImageView
 
-    val TAG : String = "MainActivity"
-    val KEY_INDEX : String = "index"
-    val ANSWERS_INDEX : String = "answers"
+    private val REQUEST_CODE_CHEAT : Int  = 0
+
+    private val TAG : String = "MainActivity"
+    private val KEY_INDEX : String = "index"
+    private val ANSWERS_INDEX : String = "answers"
+
+    private var mIsCheater : Boolean = false
+
 
     private var  mQuestionBank : MutableList<Question> = mutableListOf<Question>(
         Question(R.string.question_australia, true),
@@ -59,6 +64,7 @@ class MainActivity : AppCompatActivity() {
 
         mFalseButton = findViewById(R.id.false_button)
         mFalseButton.setOnClickListener {
+
             checkAnswer(false)
         }
 
@@ -95,10 +101,27 @@ class MainActivity : AppCompatActivity() {
         mCheatButton.setOnClickListener{
 
             //В данном случае используется явный explicit конструктор
-            val intent : Intent = Intent(this, CheatActivity::class.java)
-            startActivity(intent)
+            //Данная активность должна возвращать данные о том, подсмотрел ответ пользователь или нет
+            //По видемому данные можно передовать вместе с Intent
+            val answerIsTrue  : Boolean = mQuestionBank[mCurrentIndex].isAnswerTrue
 
+            val intent : Intent? = CheatActivity().newIntent(this, answerIsTrue)
+
+            //Метод позволяющий получить результат от дочерней активности
+            startActivityForResult(intent, REQUEST_CODE_CHEAT)
         }
+    }
+
+    //
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if(resultCode != RESULT_OK  ) return
+        if(requestCode == REQUEST_CODE_CHEAT) {
+            if (data == null) return
+            mIsCheater = CheatActivity().wasAnswerShown(data)
+        }
+
     }
 
     private fun updateQuestion() {
@@ -156,13 +179,22 @@ class MainActivity : AppCompatActivity() {
         val answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue
         val messageResId: Int
 
-        if(userPressedTrue == answerIsTrue) {
-            messageResId = R.string.correct_toast
-            mQuestionAnswers[mCurrentIndex] = true
-        }
-        else  {
-            messageResId = R.string.incorrect_toast
-            mQuestionAnswers[mCurrentIndex] = false
+        //Теперь, если пользователь подглянул показываем ему сообщение об этом
+        if(mIsCheater){
+
+            messageResId = R.string.judgment_toast
+        } else{
+
+            if(userPressedTrue == answerIsTrue) {
+
+                messageResId = R.string.correct_toast
+                mQuestionAnswers[mCurrentIndex] = true
+            }
+            else  {
+
+                messageResId = R.string.incorrect_toast
+                mQuestionAnswers[mCurrentIndex] = false
+            }
         }
 
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show()
@@ -172,11 +204,13 @@ class MainActivity : AppCompatActivity() {
     //Переопределение методов жизненного цикла
     override fun onStart() {
         super.onStart()
+
         Log.d(TAG, "onStart called")
     }
 
     override fun onResume() {
         super.onResume()
+
         Log.d(TAG, "onResume() called")
 
         //При продолжении работы необходимо проверить есть ли данные о
@@ -189,27 +223,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+
         Log.d(TAG, "onPause() called")
     }
 
     override fun onStop() {
         super.onStop()
+
         Log.d(TAG, "onStop() called")
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
         Log.d(TAG, "onDestroy() called")
     }
 
     //Фунция необходимая для сохранения данных при изменениях жизни activity
     private fun getBoolArrayFromMap(answers : MutableMap<Int,Boolean>?) : BooleanArray{
+
         //индексы важны т.к. они отвечают за id вопроса
         val tempArray = BooleanArray(answers!!.size)
+
         if(!answers.isNullOrEmpty())
         for( (index, answer) in answers ){
             tempArray[index] = answer
         }
+
         return tempArray
     }
 
@@ -219,6 +259,7 @@ class MainActivity : AppCompatActivity() {
         for ( i in boolArray.indices){
             tempMap[i] = boolArray[i]
         }
+
         return tempMap
     }
 
@@ -234,8 +275,10 @@ class MainActivity : AppCompatActivity() {
         Log.i(TAG,"Введенные данные сохраненные программой ${getBoolArrayFromMap(mQuestionAnswers).size.toString()}")
     }
 
+    //Если массив данных был сохранен не с начала, то программа выдает ошибку
     override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
         super.onRestoreInstanceState(savedInstanceState)
+
         Log.d(TAG,"Получил данные onRestoreInstanceState")
         mCurrentIndex = savedInstanceState!!.getInt(KEY_INDEX, 0)
         mQuestionAnswers = getMapFromBoolArray(savedInstanceState.getBooleanArray(ANSWERS_INDEX))
