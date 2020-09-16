@@ -1,10 +1,8 @@
 package com.example.geoquiz
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Resources
 import android.os.Bundle
-import android.os.PersistableBundle
 import android.util.Log
 import android.view.View
 import android.widget.*
@@ -34,9 +32,11 @@ class MainActivity : AppCompatActivity() {
     private val TAG : String = "MainActivity"
     private val KEY_INDEX : String = "index"
     private val ANSWERS_INDEX : String = "answers"
+    private val HINTS_INDEX = "hints"
+    private val PERSON_ANSWERS = "person_answers"
 
     private var mIsCheater : Boolean = false
-
+    private var mHintsCount  = 3
 
     private var  mQuestionBank : MutableList<Question> = mutableListOf<Question>(
         Question(R.string.question_australia, true),
@@ -47,6 +47,10 @@ class MainActivity : AppCompatActivity() {
         Question(R.string.question_asia, true)
     );
 
+    //Создается массив в ячейках которого значение false, т.е. на конкретные вопросы
+    //не был дан ответ
+    private var AnsweredBoolArray = BooleanArray(mQuestionBank.size)
+
     //Массив пользовательских ответов на вопрос
     private var mQuestionAnswers = mutableMapOf<Int,Boolean>()
 
@@ -56,6 +60,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate called")
         setContentView(R.layout.activity_main)
+
+        if(savedInstanceState != null) mCurrentIndex = savedInstanceState.getInt(KEY_INDEX)
 
         //В коде java тут приводят к типу button, но по видемому
         // в kotlin это не требуется(может новая версия)
@@ -88,6 +94,7 @@ class MainActivity : AppCompatActivity() {
 
         mPrevButton = findViewById(R.id.prev_button)
         mPrevButton.setOnClickListener {
+
             mCurrentIndex =
                 if (mCurrentIndex == 0) mQuestionBank.size - 1 else (mCurrentIndex - 1)
 
@@ -103,15 +110,18 @@ class MainActivity : AppCompatActivity() {
         mCheatButton = findViewById(R.id.cheat_button)
         mCheatButton.setOnClickListener{
 
-            //В данном случае используется явный explicit конструктор
-            //Данная активность должна возвращать данные о том, подсмотрел ответ пользователь или нет
-            //По видемому данные можно передовать вместе с Intent
-            val answerIsTrue  : Boolean = mQuestionBank[mCurrentIndex].isAnswerTrue
+            if(mHintsCount > 0) {
+                //В данном случае используется явный explicit конструктор
+                //Данная активность должна возвращать данные о том, подсмотрел ответ пользователь или нет
+                //По видемому данные можно передовать вместе с Intent
+                val answerIsTrue  : Boolean = mQuestionBank[mCurrentIndex].isAnswerTrue
 
-            val intent : Intent? = CheatActivity().newIntent(this, answerIsTrue)
+                val intent : Intent? = CheatActivity().newIntent(this, answerIsTrue)
 
-            //Метод позволяющий получить результат от дочерней активности
-            startActivityForResult(intent, REQUEST_CODE_CHEAT)
+                //Метод позволяющий получить результат от дочерней активности
+                startActivityForResult(intent, REQUEST_CODE_CHEAT)
+
+            } else  Toast.makeText(this@MainActivity, R.string.hints_toast,Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -125,6 +135,11 @@ class MainActivity : AppCompatActivity() {
             mIsCheater = CheatActivity().wasAnswerShown(data)
         }
 
+        if(mIsCheater){
+            mIsCheater = false
+            --mHintsCount
+        }
+
     }
 
     private fun updateQuestion() {
@@ -136,22 +151,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun calculateSumTrueAnswer() : Int{
         var sum : Int = 0
+
         for((index,answer) in mQuestionAnswers) {
-            if (mQuestionBank[index].isAnswerTrue == answer) sum++
+            //Проверка ответа и то, что ответ был принят(кнопка нажата)
+            if (answer && AnsweredBoolArray[index])
+                sum++
         }
         return sum
     }
 
     private fun showMessage(){
-        if(mQuestionAnswers.size == mQuestionBank.size)
-        {
+        var count = 0
+        for (isAnswered in AnsweredBoolArray)
+            if(isAnswered) count++
+
+        if( (mQuestionAnswers.size == mQuestionBank.size) && (count == mQuestionBank.size) ) {
+
             Toast.makeText(this@MainActivity,"You completed " + calculateSumTrueAnswer() + " task(s) from " + mQuestionBank.size,Toast.LENGTH_LONG).show()
         }
     }
 
 
-    private fun isHasAnswerDo() : Boolean{
-        if(mQuestionAnswers.containsKey(mCurrentIndex))
+    private fun isHasAnswerDo(){
+        if(mQuestionAnswers.containsKey(mCurrentIndex) && AnsweredBoolArray[mCurrentIndex])
         {
             mTrueButton.visibility = View.INVISIBLE
             mFalseButton.visibility = View.INVISIBLE
@@ -159,19 +181,17 @@ class MainActivity : AppCompatActivity() {
             //Необходимо добавить этот текст в strings и чтобы при этом он
             // динамически изменялся
             val res : Resources = resources
-            val str : String = String.format(
+
+            mAnswerTextView.text =  String.format(
                 res.getString(
                     R.string.answer_output,
                     mQuestionAnswers[mCurrentIndex].toString() ))
 
-            mAnswerTextView.text = str
-            return true
         }
         else{
             mTrueButton.visibility = View.VISIBLE
             mFalseButton.visibility = View.VISIBLE
             mAnswerTextView.setText("")
-            return false
         }
 
     }
@@ -182,25 +202,20 @@ class MainActivity : AppCompatActivity() {
         val answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue
         val messageResId: Int
 
-        //Теперь, если пользователь подглянул показываем ему сообщение об этом
-        if(mIsCheater){
-
-            messageResId = R.string.judgment_toast
-        } else{
-
             if(userPressedTrue == answerIsTrue) {
 
                 messageResId = R.string.correct_toast
                 mQuestionAnswers[mCurrentIndex] = true
             }
-            else  {
+            else{
 
                 messageResId = R.string.incorrect_toast
                 mQuestionAnswers[mCurrentIndex] = false
             }
-        }
 
-        Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show()
+        //Т.е. ответ на конкретный вопрос был дан
+        AnsweredBoolArray[mCurrentIndex] = true
+        Toast.makeText(this@MainActivity, messageResId, Toast.LENGTH_SHORT).show()
     }
 
 
@@ -214,6 +229,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
+        isHasAnswerDo()
         Log.d(TAG, "onResume() called")
 
         //При продолжении работы необходимо проверить есть ли данные о
@@ -246,12 +262,12 @@ class MainActivity : AppCompatActivity() {
     private fun getBoolArrayFromMap(answers : MutableMap<Int,Boolean>?) : BooleanArray{
 
         //индексы важны т.к. они отвечают за id вопроса
-        val tempArray = BooleanArray(answers!!.size)
+        val tempArray : BooleanArray = BooleanArray(mQuestionBank.size)
 
         if(!answers.isNullOrEmpty())
-        for( (index, answer) in answers ){
-            tempArray[index] = answer
-        }
+            for( (index, answer) in answers ){
+                tempArray[index] = answer
+            }
 
         return tempArray
     }
@@ -259,9 +275,9 @@ class MainActivity : AppCompatActivity() {
     private fun getMapFromBoolArray(boolArray : BooleanArray?) : MutableMap<Int,Boolean>{
         val tempMap = mutableMapOf<Int,Boolean>()
         if(boolArray != null)
-        for ( i in boolArray.indices){
-            tempMap[i] = boolArray[i]
-        }
+            for ( i in boolArray.indices){
+                tempMap[i] = boolArray[i]
+            }
 
         return tempMap
     }
@@ -274,8 +290,11 @@ class MainActivity : AppCompatActivity() {
 
         savedInstanceState.putBooleanArray(ANSWERS_INDEX,getBoolArrayFromMap(mQuestionAnswers))
         savedInstanceState.putInt(KEY_INDEX, mCurrentIndex)
+        savedInstanceState.putInt(HINTS_INDEX, mHintsCount)
+        savedInstanceState.putBooleanArray(PERSON_ANSWERS, AnsweredBoolArray)
+
         Log.d(TAG,"Сохранил данные(onSaveInstanceState)")+
-        Log.i(TAG,"Введенные данные сохраненные программой ${getBoolArrayFromMap(mQuestionAnswers).size.toString()}")
+                Log.i(TAG,"Введенные данные сохраненные программой ${getBoolArrayFromMap(mQuestionAnswers).size.toString()}")
     }
 
     //Если массив данных был сохранен не с начала, то программа выдает ошибку
@@ -285,6 +304,10 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG,"Получил данные onRestoreInstanceState")
         mCurrentIndex = savedInstanceState!!.getInt(KEY_INDEX, 0)
         mQuestionAnswers = getMapFromBoolArray(savedInstanceState.getBooleanArray(ANSWERS_INDEX))
+        mHintsCount = savedInstanceState.getInt(HINTS_INDEX)
+
+        AnsweredBoolArray = savedInstanceState.getBooleanArray(PERSON_ANSWERS)!!
+
         Log.i(TAG,"Введенные данные сохраненные программой ${savedInstanceState.getBooleanArray(ANSWERS_INDEX)?.size.toString()}")
     }
 }
